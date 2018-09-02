@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 import os
@@ -11,14 +11,14 @@ import numpy as np
 import h5py
 
 
-# In[2]:
+# In[4]:
 
 
 data_dir = "./data"
 epochs = ['średniowiecze', 'współczesność', 'modernizm', 'romantyzm', 'barok', 'oświecenie', 'renesans', 'pozytywizm', 'dwudziestolecie', 'starożytność']
 
 
-# In[3]:
+# In[5]:
 
 
 sizes = get_ipython().getoutput('du ./data')
@@ -30,7 +30,7 @@ for s in sizes:
 epoch_sizes
 
 
-# In[4]:
+# In[6]:
 
 
 m = min(epoch_sizes.values())
@@ -39,32 +39,32 @@ epoch_skips = {a: int(np.floor(b)) for a,b in zip(epoch_sizes.keys(),skips)}
 epoch_skips
 
 
-# In[5]:
+# In[7]:
 
 
-get_ipython().system('cd data; cat */*.txt > big_blob.txt')
-with open('./data/big_blob.txt', 'r', encoding="utf-8") as blob:
-    b = blob.read()
-    chars = set(b)
-    freq = {c: 0 for c in chars}
-    for c in list(b):
-        freq[c] +=1
-        
-    del b
-    
-freq_sorted = sorted(freq.items(), key=lambda x: x[1])
-freq_filtered = [x[0] for x in freq_sorted if x[1] > 1000]
-print("".join(sorted(freq_filtered)))
-freq_filtered += ["NULL"]
+#get_ipython().system('cd data; cat */*.txt > big_blob.txt')
+#with open('./data/big_blob.txt', 'r', encoding="utf-8") as blob:
+#    b = blob.read()
+#    chars = set(b)
+#    freq = {c: 0 for c in chars}
+#    for c in list(b):
+#        freq[c] +=1
+#        
+#    del b
+#    
+#freq_sorted = sorted(freq.items(), key=lambda x: x[1])
+#freq_filtered = [x[0] for x in freq_sorted if x[1] > 1000]
+#print("".join(sorted(freq_filtered)))
+#freq_filtered += ["NULL"]
+#
+#char_idx = {c: i for i, c in enumerate(sorted(freq_filtered))}
+#pickle.dump(char_idx, open('charmap.pickle','wb'))
+char_idx = pickle.load(open('charmap.pickle','rb'))
 
-char_idx = {c: i for i, c in enumerate(sorted(freq_filtered))}
-pickle.dump(char_idx, open('charmap.pickle','wb'))
+# In[8]:
 
 
-# In[15]:
-
-
-def process_text_with_epochs(files_dir, epochs, char_idx, epoch_skips, hdf_path ="./dataset.h5f", seq_maxlen=25, redun_step=3):
+def process_text_with_epochs(files_dir, all_epochs, epoch, char_idx, epoch_skips, hdf_path ="./dataset.h5f", seq_maxlen=25, redun_step=3):
     def map_char(char):
         idx = char_idx.get(char)
         if idx is None:
@@ -73,7 +73,7 @@ def process_text_with_epochs(files_dir, epochs, char_idx, epoch_skips, hdf_path 
             return idx
         
     len_chars = len(char_idx)
-    len_epochs = len(epochs)
+    len_epochs = len(all_epochs)
     vector_len = len_chars + len_epochs
     
     with h5py.File(hdf_path, "a") as hdf5_file:
@@ -86,47 +86,62 @@ def process_text_with_epochs(files_dir, epochs, char_idx, epoch_skips, hdf_path 
                                         dtype='bool')
         
 
-        for epoch in epochs:
-            print("Processing: ",epoch, 'step=',redun_step+epoch_skips[epoch])
-            epoch_path = os.path.join(files_dir, epoch)
-            txt_files = [os.path.join(epoch_path, f) for f in os.listdir(epoch_path) if os.path.isfile(os.path.join(epoch_path, f))]
 
-            for file in tqdm(txt_files):
-                with open(file, 'rt') as txt:
-                    string = txt.read()
+        print("Processing: ",epoch, 'step=',redun_step+epoch_skips[epoch])
+        epoch_path = os.path.join(files_dir, epoch)
+        txt_files = [os.path.join(epoch_path, f) for f in os.listdir(epoch_path) if os.path.isfile(os.path.join(epoch_path, f))]
 
-                    sequences = []
-                    next_chars = []
-                    step = redun_step + epoch_skips[epoch]
-                    for i in range(0, len(string) - seq_maxlen, redun_step):
-                        sequences.append(string[i: i + seq_maxlen])
-                        next_chars.append(string[i + seq_maxlen])
+        for file in tqdm(txt_files):
+            with open(file, 'rt') as txt:
+                string = txt.read()
+                string = string[:-1350] #removing footnote
 
-                    x = np.zeros((len(sequences), seq_maxlen, vector_len), dtype=np.bool)
-                    y = np.zeros((len(sequences), len_chars), dtype=np.bool)
-                    for i, seq in enumerate(sequences):
-                        for t, char in enumerate(seq):
-                            x[i, t, map_char(char)] = 1
-                            x[i, t, len_chars + epochs.index(epoch)] = 1
-                        y[i, map_char(next_chars[i])] = 1
+                if(len(string) <= 0):
+                   continue
 
-                    x_len = x.shape[0]
-                    Xt.resize(Xt.shape[0]+x_len, axis=0)   
-                    Xt[-x_len:] = x
-                    
-                    y_len = y.shape[0]
-                    Yt.resize(Yt.shape[0]+y_len, axis=0)   
-                    Yt[-y_len:] = y
+                sequences = []
+                next_chars = []
+                step = redun_step + epoch_skips[epoch]
+                for i in range(0, len(string) - seq_maxlen, redun_step):
+                    sequences.append(string[i: i + seq_maxlen])
+                    next_chars.append(string[i + seq_maxlen])
+
+                x = np.zeros((len(sequences), seq_maxlen, vector_len), dtype=np.bool)
+                y = np.zeros((len(sequences), len_chars), dtype=np.bool)
+                for i, seq in enumerate(sequences):
+                    for t, char in enumerate(seq):
+                        x[i, t, map_char(char)] = 1
+                        x[i, t, len_chars + epochs.index(epoch)] = 1
+                    y[i, map_char(next_chars[i])] = 1
+
+
+                x_len = x.shape[0]
+                if x_len == 0:
+                    continue
+
+                Xt.resize(Xt.shape[0]+x_len, axis=0)
+                Xt[-x_len:] = x
+
+                y_len = y.shape[0]
+                Yt.resize(Yt.shape[0]+y_len, axis=0)
+                Yt[-y_len:] = y
                 
         shapes = (Xt.shape, Yt.shape)
+        print(shapes)
                 
     return shapes
 
 
-# In[17]:
+# In[9]:
 
 
-#shapes = process_text_with_epochs(data_dir, ['średniowiecze'], char_idx, epoch_skips)
+#shapes = process_text_with_epochs(data_dir, epochs, 'romantyzm', char_idx, epoch_skips)
+#print(shapes)
+
+# In[10]:
+
+
+#shapes
 
 
 # In[18]:
@@ -136,9 +151,11 @@ from multiprocessing import Pool
 pool = Pool()
 
 for epoch in epochs:
-    pool.apply_async(process_text_with_epochs, [data_dir, [epoch], 
+    pool.apply_async(process_text_with_epochs, [data_dir, epochs, epoch,
                                                 char_idx, epoch_skips,
                                                 "dataset_"+epoch+".h5f",
                                                 25, 3])
     
+pool.close()
+pool.join()
 
