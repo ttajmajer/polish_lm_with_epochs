@@ -2,7 +2,7 @@
 
 Toy project based on LSTM language model. Using all available texts from http://wolnelektury.pl/ as the dataset. 
 
-The model is character-level, but also includes extra vector with one-hot encoded literary epoch. The idea is to generate text with one neural network, but for different epochs, and so, with different 'flavours'.
+The model is character-level, but also includes extra vector with one-hot encoded literary epoch. The idea is to generate text with one neural network, but with different 'flavours' distinctive for each epoch (assuming that there are distinctive literary features for each epoch).
 
 ## Usage
 
