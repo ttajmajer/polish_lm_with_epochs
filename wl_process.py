@@ -10,6 +10,8 @@ import pickle
 import numpy as np
 import h5py
 
+SEQ_LEN = 100
+SKIP_BASE = 10
 
 # In[4]:
 
@@ -20,6 +22,8 @@ epochs = ['średniowiecze', 'współczesność', 'modernizm', 'romantyzm', 'baro
 
 # In[5]:
 
+
+# this is done to have less examples from more represented epochs
 
 sizes = get_ipython().getoutput('du ./data')
 epoch_sizes = {}
@@ -42,29 +46,29 @@ epoch_skips
 # In[7]:
 
 
-#get_ipython().system('cd data; cat */*.txt > big_blob.txt')
-#with open('./data/big_blob.txt', 'r', encoding="utf-8") as blob:
-#    b = blob.read()
-#    chars = set(b)
-#    freq = {c: 0 for c in chars}
-#    for c in list(b):
-#        freq[c] +=1
-#        
-#    del b
-#    
-#freq_sorted = sorted(freq.items(), key=lambda x: x[1])
-#freq_filtered = [x[0] for x in freq_sorted if x[1] > 1000]
-#print("".join(sorted(freq_filtered)))
-#freq_filtered += ["NULL"]
-#
-#char_idx = {c: i for i, c in enumerate(sorted(freq_filtered))}
-#pickle.dump(char_idx, open('charmap.pickle','wb'))
+get_ipython().system('cd data; cat */*.txt > big_blob.txt')
+with open('./data/big_blob.txt', 'r', encoding="utf-8") as blob:
+    b = blob.read()
+    chars = set(b)
+    freq = {c: 0 for c in chars}
+    for c in list(b):
+        freq[c] +=1
+        
+    del b
+    
+freq_sorted = sorted(freq.items(), key=lambda x: x[1])
+freq_filtered = [x[0] for x in freq_sorted if x[1] > 1000]
+print("".join(sorted(freq_filtered)))
+freq_filtered += ["NULL"]
+
+char_idx = {c: i for i, c in enumerate(sorted(freq_filtered))}
+pickle.dump(char_idx, open('charmap.pickle','wb'))
 char_idx = pickle.load(open('charmap.pickle','rb'))
 
 # In[8]:
 
 
-def process_text_with_epochs(files_dir, all_epochs, epoch, char_idx, epoch_skips, hdf_path ="./dataset.h5f", seq_maxlen=25, redun_step=3):
+def process_text_with_epochs(files_dir, all_epochs, epoch, char_idx, epoch_skips, hdf_path ="./dataset.h5f", seq_maxlen=SEQLEN, redun_step=SKIP_BASE):
     def map_char(char):
         idx = char_idx.get(char)
         if idx is None:
@@ -154,7 +158,7 @@ for epoch in epochs:
     pool.apply_async(process_text_with_epochs, [data_dir, epochs, epoch,
                                                 char_idx, epoch_skips,
                                                 "dataset_"+epoch+".h5f",
-                                                25, 3])
+                                                SEQ_LEN, SKIP_BASE])
     
 pool.close()
 pool.join()
